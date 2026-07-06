@@ -315,6 +315,7 @@ void Shell7pElement::CalculateLeftHandSide(
     Matrix amkonr0_eas = ZeroMatrix(3);
     double amdet0_body = 0.0;
     double detJ0_surface = 0.0;
+    double A_element = GetGeometry().Area();
 
     array_1d<double,3> local_coords;
     local_coords[0] = 0.0;      // the EAS modes are initially formulated at the element center
@@ -390,14 +391,16 @@ void Shell7pElement::CalculateLeftHandSide(
 
             CalculateMaterialLaw(Dmatrix,gmkonr,thickness,ConstitutiveLawType::gStVenantKirchhoff, Theta3, scalefactor);
         }
-        Dmatrix(2,2) *= 5.0/6.0; 
-        Dmatrix(2,4) *= 5.0/6.0; 
-        Dmatrix(4,2) *= 5.0/6.0;        // separate function ApplyShearCorrections()?
-        Dmatrix(4,4) *= 5.0/6.0;
-        Dmatrix(8,8) *= 0.7;     
-        Dmatrix(8,10) *= 0.7;
-        Dmatrix(10,8) *= 0.7;
-        Dmatrix(10,10) *= 0.7;
+
+        double f_s = thickness*thickness/(thickness*thickness + 0.12*std::sqrt(A_element));
+        Dmatrix(2,2) *= 5.0/6.0 * f_s; 
+        Dmatrix(2,4) *= 5.0/6.0 * f_s; 
+        Dmatrix(4,2) *= 5.0/6.0 * f_s;        // separate function ApplyShearCorrections()?
+        Dmatrix(4,4) *= 5.0/6.0 * f_s;
+        Dmatrix(8,8) *= 0.7 * f_s;     
+        Dmatrix(8,10) *= 0.7 * f_s;
+        Dmatrix(10,8) *= 0.7 * f_s;
+        Dmatrix(10,10) *= 0.7 * f_s;
 
         double weight = integration_weight_i * detJ_surface; // * thickness*0.5; 
         Matrix DB = ZeroMatrix(12,number_dofs); 
@@ -1250,13 +1253,13 @@ void Shell7pElement::CalculateMassMatrix(MatrixType& rMassMatrix, const ProcessI
                     rMassMatrix(j*nodal_num_dofs + k, i*nodal_num_dofs + k) += inertia_v;
                 }
 
-//                double inertia_w = facw * NiNj * h2h2;
-//                for (IndexType k = 3; k < 6; ++k) {
-//                    rMassMatrix(j*nodal_num_dofs + k, i*nodal_num_dofs + k) += inertia_w;
-//                }
-//
+                double inertia_w = facw * NiNj; // * h2h2;
+                for (IndexType k = 3; k < 6; ++k) {
+                    rMassMatrix(j*nodal_num_dofs + k, i*nodal_num_dofs + k) += inertia_w;
+                }
+
                 if (std::abs(facvw)>1.0e-14) {
-                    double inertia_vw = facvw * NiNj * h2;
+                    double inertia_vw = facvw * NiNj; // * h2;
                     rMassMatrix(j*nodal_num_dofs + 3, i*nodal_num_dofs + 0) += inertia_vw;
                     rMassMatrix(j*nodal_num_dofs + 4, i*nodal_num_dofs + 1) += inertia_vw;
                     rMassMatrix(j*nodal_num_dofs + 5, i*nodal_num_dofs + 2) += inertia_vw;
